@@ -7,7 +7,7 @@
 local io = require("io")
 local os = require("os")
 
--- Цвета для терминала
+-- Terminal colors
 local colors = {
     reset = "\027[0m",
     red = "\027[31m",
@@ -18,7 +18,7 @@ local colors = {
     white = "\027[37m"
 }
 
--- Словари переводов
+-- Translation dictionaries
 local translations = {
     ru = {
         language_select = "Select language / Выберите язык:",
@@ -96,11 +96,11 @@ local translations = {
     }
 }
 
--- Текущий язык
+-- Current language
 local current_lang
 local t
 
--- Функция для выбора языка
+-- Function for language selection
 local function select_language()
     print(colors.cyan .. "\n" .. translations.ru.language_select .. colors.reset)
     print(colors.white .. "[1]" .. colors.reset .. " " .. translations.ru.language_en)
@@ -124,7 +124,7 @@ local function select_language()
     end
 end
 
--- Функция для чтения файла
+-- Function for reading file
 local function read_file(filepath)
     local file = io.open(filepath, "r")
     if not file then
@@ -136,7 +136,7 @@ local function read_file(filepath)
     return content
 end
 
--- Функция для записи файла
+-- Function for writing file
 local function write_file(filepath, content)
     local file = io.open(filepath, "w")
     if not file then
@@ -148,15 +148,15 @@ local function write_file(filepath, content)
     return true
 end
 
--- Функция для создания резервной копии
+-- Function for creating backup
 local function create_backup(filepath)
     local backup_path = filepath .. ".backup"
     
-    -- Проверяем существует ли уже резервная копия
+    -- Check if backup already exists
     local backup_file = io.open(backup_path, "r")
     if backup_file then
         backup_file:close()
-        return true, backup_path, true -- true означает что файл уже существовал
+        return true, backup_path, true -- true means file already existed
     end
     
     local content, err = read_file(filepath)
@@ -166,30 +166,30 @@ local function create_backup(filepath)
     
     local success, write_err = write_file(backup_path, content)
     if success then
-        return true, backup_path, false -- false означает что файл создан новый
+        return true, backup_path, false -- false means new file was created
     else
         return false, write_err
     end
 end
 
--- Функция для парсинга VDF файла и извлечения пользователей
+-- Function for parsing VDF file and extracting users
 local function parse_vdf_users(content)
     local users = {}
     
-    -- Разбиваем контент на строки
+    -- Split content into lines
     local lines = {}
     for line in content:gmatch("[^\r\n]+") do
         table.insert(lines, line:match("^%s*(.-)%s*$")) -- trim whitespace
     end
     
-    -- Проходим по всем строкам и ищем PersonaName
+    -- Go through all lines and look for PersonaName
     for i, line in ipairs(lines) do
         local persona_name = line:match('"PersonaName"%s*"([^"]*)"')
         if persona_name then
-            -- Нашли PersonaName, теперь ищем связанные данные
+            -- Found PersonaName, now look for related data
             local user_id, account_name, wants_offline, most_recent
             
-            -- Ищем назад до Steam ID
+            -- Search backwards for Steam ID
             for j = i - 1, math.max(1, i - 20), -1 do
                 if not user_id then
                     user_id = lines[j]:match('"(%d%d%d%d%d%d%d%d%d%d%d%d%d+)"')
@@ -199,7 +199,7 @@ local function parse_vdf_users(content)
                 end
             end
             
-            -- Ищем вперед для WantsOfflineMode и MostRecent
+            -- Search forward for WantsOfflineMode and MostRecent
             for j = i + 1, math.min(#lines, i + 20) do
                 if not wants_offline then
                     wants_offline = lines[j]:match('"WantsOfflineMode"%s*"([01])"')
@@ -209,7 +209,7 @@ local function parse_vdf_users(content)
                 end
             end
             
-            -- Если все необходимые данные найдены, добавляем пользователя
+            -- If all necessary data is found, add user
             if user_id and account_name and persona_name then
                 local user = {
                     id = user_id,
@@ -226,9 +226,9 @@ local function parse_vdf_users(content)
     return users
 end
 
--- Функция для обновления значения WantsOfflineMode в контенте
+-- Function for updating WantsOfflineMode value in content
 local function update_offline_mode(content, user_id, new_value)
-    -- Ищем блок пользователя
+    -- Search for user block
     local user_pattern = '("' .. user_id .. '"%s*%{.-"WantsOfflineMode"%s*)"[^"]*"'
     local replacement = '%1"' .. new_value .. '"'
     
@@ -236,7 +236,7 @@ local function update_offline_mode(content, user_id, new_value)
     return new_content
 end
 
--- Функция для отображения списка пользователей
+-- Function for displaying users list
 local function display_users(users)
     print(colors.cyan .. "\n" .. t.accounts_list .. colors.reset)
     
@@ -257,7 +257,7 @@ local function display_users(users)
     print(colors.white .. "\n[0] " .. t.exit .. colors.reset)
 end
 
--- Функция для выбора действия
+-- Function for choosing action
 local function choose_action(user)
     local current_status = user.wants_offline_mode == "1" and t.enabled_lower or t.disabled_lower
     local action_text = user.wants_offline_mode == "1" and t.disable_offline or t.enable_offline
@@ -280,12 +280,12 @@ local function choose_action(user)
     end
 end
 
--- Главная функция программы
+-- Main program function
 local function main()
-    -- Выбираем язык
+    -- Select language
     select_language()
     
-    -- Определяем путь к файлу
+    -- Determine file path
     local home = os.getenv("HOME")
     if not home then
         print(colors.red .. t.home_dir_error .. colors.reset)
@@ -294,7 +294,7 @@ local function main()
     
     local vdf_path = home .. "/.local/share/Steam/config/loginusers.vdf"
     
-    -- Читаем файл
+    -- Read file
     print(colors.blue .. t.reading_file .. " " .. vdf_path .. colors.reset)
     local content, err = read_file(vdf_path)
     if not content then
@@ -302,7 +302,7 @@ local function main()
         return 1
     end
     
-    -- Создаем резервную копию
+    -- Create backup
     print(colors.blue .. t.checking_backup .. colors.reset)
     local backup_success, backup_path, already_exists = create_backup(vdf_path)
     if backup_success then
@@ -315,7 +315,7 @@ local function main()
         print(colors.yellow .. t.backup_warning .. " " .. backup_path .. colors.reset)
     end
     
-    -- Парсим пользователей
+    -- Parse users
     local users = parse_vdf_users(content)
     if #users == 0 then
         print(colors.red .. t.no_users_found .. colors.reset)
@@ -323,7 +323,7 @@ local function main()
     end
     
     while true do
-        -- Показываем список пользователей
+        -- Show users list
         display_users(users)
         
         io.write(colors.white .. "\n" .. t.select_account .. " " .. colors.reset)
@@ -338,10 +338,10 @@ local function main()
             local new_value = choose_action(selected_user)
             
             if new_value then
-                -- Обновляем контент
+                -- Update content
                 content = update_offline_mode(content, selected_user.id, new_value)
                 
-                -- Сохраняем файл
+                -- Save file
                 local success, write_err = write_file(vdf_path, content)
                 if success then
                     selected_user.wants_offline_mode = new_value
@@ -365,5 +365,5 @@ local function main()
     return 0
 end
 
--- Запуск программы
+-- Run program
 os.exit(main()) 
